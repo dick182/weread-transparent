@@ -1,0 +1,29 @@
+# 依赖
+node_modules/
+
+# 打包中间产物
+dist/
+out/
+release/_stage/
+
+# release 里只收便携版 exe 与说明；
+# Win-x64.zip 有 107MB，超过 GitHub 单文件 100MB 硬限制，故排除（可用源码重打包或走 Releases）
+release/*
+!release/WeRead-Transparent-1.0.0-Portable.exe
+!release/使用说明.txt
+
+# 运行时日志
+*.log
+logs/
+
+# 便携版数据目录（放 portable.txt 时产生，含登录态）
+data/
+portable.txt
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp

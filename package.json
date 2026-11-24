@@ -1,0 +1,54 @@
+{
+  "name": "weread-transparent",
+  "version": "1.0.0",
+  "description": "微信读书桌面客户端（便携版）：透明背景、无边框、沉浸纯文字阅读",
+  "main": "main.js",
+  "author": "MΛØ",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "icon": "node build/make-icon.js",
+    "dist": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.mao.wereadtransparent",
+    "productName": "微信读书",
+    "copyright": "Copyright © 2026 MΛØ",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "page-turn.js",
+      "theme-sync.js",
+      "black-text-patch.js",
+      "tray.png",
+      "package.json"
+    ],
+    "compression": "maximum",
+    "win": {
+      "icon": "build/icon.png",
+      "executableName": "WeRead",
+      "legalTrademarks": "MΛØ",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "WeRead-Transparent-1.0.0-Portable.${ext}",
+      "requestExecutionLevel": "user",
+      "unpackDirName": "WeReadTransparent"
+    }
+  }
+}
