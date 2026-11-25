@@ -130,6 +130,27 @@ async function main() {
     const x = parseFloat(args[0]), y = parseFloat(args[1])
     await send(ws, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
     console.log('hover', x, y)
+  } else if (cmd === 'chord') {
+    // node cdp.js chord Alt+B / Ctrl+Shift+K  （验证自定义快捷键用）
+    const acc = args[0] || 'Alt+B'
+    const parts = acc.split('+')
+    const key = parts.pop()
+    let modifiers = 0
+    for (const p of parts) {
+      const q = p.toLowerCase()
+      if (q === 'alt') modifiers |= 1
+      else if (q === 'ctrl' || q === 'control') modifiers |= 2
+      else if (q === 'meta' || q === 'cmd' || q === 'command') modifiers |= 4
+      else if (q === 'shift') modifiers |= 8
+    }
+    const vk = key.length === 1 ? key.toUpperCase().charCodeAt(0) : 0
+    const code = key.length === 1 ? 'Key' + key.toUpperCase() : key
+    for (const type of ['keyDown', 'keyUp']) {
+      await send(ws, 'Input.dispatchKeyEvent', {
+        type, key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk, modifiers
+      })
+    }
+    console.log('chord', acc, 'modifiers', modifiers)
   } else if (cmd === 'front') {
     await send(ws, 'Page.bringToFront')
     console.log('brought to front')

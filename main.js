@@ -32,6 +32,10 @@ try { THEME_SYNC = fs.readFileSync(path.join(__dirname, 'theme-sync.js'), 'utf8'
 let PAGE_TURN = ''
 try { PAGE_TURN = fs.readFileSync(path.join(__dirname, 'page-turn.js'), 'utf8') } catch (_) {}
 
+// 透明模式右上角书签角标的 hover 显隐控制（主世界，幂等）
+let BM_HOVER = ''
+try { BM_HOVER = fs.readFileSync(path.join(__dirname, 'bookmark-hover.js'), 'utf8') } catch (_) {}
+
 let win = null
 let cssKey = null
 let tray = null
@@ -44,11 +48,12 @@ let styleOpts = {
 }
 
 /* ---------- 快捷键设置：键位 + 模式（可自定义、持久化） ---------- */
-const KEY_LABELS = { transparent: '透明切换', noImage: '无图切换', boss: '老板键' }
+const KEY_LABELS = { transparent: '透明切换', noImage: '无图切换', boss: '老板键', bookmark: '添加/移除书签' }
 const DEFAULT_KEYS = {
   transparent: { key: 'F12',   mode: 'app' },
   noImage:     { key: 'Alt+X', mode: 'app' },
-  boss:        { key: 'Alt+Z', mode: 'global' }
+  boss:        { key: 'Alt+Z', mode: 'global' },
+  bookmark:    { key: 'Alt+B', mode: 'app' }
 }
 let keyConfig = loadKeys()
 let capturing = false          // 正在录制新键位：暂停一切快捷键触发
@@ -152,25 +157,25 @@ html[__wr_t] [class*="float_corner"]:not([class*="bookmark"]) {
   transition: opacity .18s !important;
 }
 /* 透明模式唯一保留的站点功能：右上角「添加书签」角标。
-   wrapper 是一条横跨正文的透明层，站点原生就是 pointer-events:auto（书签按钮靠它接收
-   悬停/点击），这里只强制它可见，不动指针行为，避免把点击事件链打断。
-   按钮本体默认隐藏，鼠标移到右上角热区（150×70）时才淡入——opacity:0 不影响命中测试，
-   所以 :hover 依然能触发；站点自己的「点击添加书签」文字也会在悬停时一并出现。
-   注意排除 actionArea_* 子元素（_lang / _icon）：否则图标会跟着自己被设成 opacity:0，
-   结果是 hover 出文字但书签图形仍然不见。 */
-html[__wr_t] .wr_reader_float_corner_bookmark_wrapper,
+   ★ 显隐改由 __wr_bm 属性门控（bookmark-hover.js 按鼠标坐标设置），不用 CSS :hover，
+     也绝不带 transition：站点点击加/移除书签后会给 wrapper 加 _hasBookmark 类并重建
+     节点，新节点带着站点默认样式，只要有淡出过渡就会「先闪一下再消失」。
+   ★ 规则直接覆盖 wrapper 子树的所有后代，站点切到 _hasBookmark 态或新建节点都盖得住；
+     wrapper 自身保持可见、pointer-events 维持站点原样，hover / click 事件链不受影响。 */
 html[__wr_t] [class*="float_corner_bookmark_wrapper"] {
   opacity: 1 !important;
 }
-html[__wr_t] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]) {
+html[__wr_t] [class*="float_corner_bookmark_wrapper"] * {
   opacity: 0 !important;
-  transition: opacity .18s !important;
+  transition: none !important;
+  animation: none !important;
+}
+html[__wr_t][__wr_bm] [class*="float_corner_bookmark_wrapper"] * {
+  opacity: 1 !important;
+}
+html[__wr_t] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]) {
   pointer-events: auto !important;
   cursor: pointer !important;
-}
-html[__wr_t] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]):hover,
-html[__wr_t] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]):focus-within {
-  opacity: 1 !important;
 }
 /* 无图模式（__wr_m）：只隐藏「书籍封面」和「书籍正文插图」，不动任何功能按钮/图标/头像。
    ① 站点按钮图标大多是 svg，功能按钮（AI问书、上下滚动阅读、加入书架、想法里的
@@ -244,6 +249,10 @@ function applyStyle() {
     // 沉浸模式的翻页点击区（同样每次加载后重挂）
     if (PAGE_TURN) {
       try { await win.webContents.executeJavaScript(PAGE_TURN, true) } catch (_) {}
+    }
+    // 透明模式书签角标的 hover 显隐控制（内部幂等，页面导航后会自动重挂）
+    if (BM_HOVER) {
+      try { await win.webContents.executeJavaScript(BM_HOVER, true) } catch (_) {}
     }
     return styleOpts
   })
@@ -346,10 +355,30 @@ function toggleMedia() {
   applyStyle()
 }
 
+// 添加 / 移除书签：直接触发站点右上角的书签按钮。
+// DOM 的 .click() 会冒泡到 React 的事件委托，实测可切换 _hasBookmark 状态；
+// 用 CDP 合成指针序列反而常丢失 mouseup。找不到按钮时给一句提示。
+async function toggleBookmark() {
+  if (!win || win.isDestroyed()) return
+  const js = `(() => {
+    const a = document.querySelector('[class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"])');
+    if (!a) return 'none';
+    a.click();
+    return 'ok';
+  })()`
+  try {
+    const r = await win.webContents.executeJavaScript(js, true)
+    if (r === 'none' && !win.isDestroyed()) {
+      win.webContents.send('wr-notice', '当前页面没有书签按钮，请先打开书籍正文')
+    }
+  } catch (_) {}
+}
+
 const ACTIONS = {
   transparent: toggleTransparent,
   noImage: toggleMedia,
-  boss: toggleWindow
+  boss: toggleWindow,
+  bookmark: toggleBookmark
 }
 function fireAction(action) {
   if (capturing || !ACTIONS[action]) return
@@ -386,11 +415,12 @@ function setupShortcuts() {
 function updateTrayLabels() {
   if (!tray || tray.isDestroyed()) return
   const k = keyConfig
-  tray.setToolTip(`微信读书（透明版）· ${k.boss.key} 显示/隐藏 · ${k.transparent.key} 透明 · ${k.noImage.key} 无图`)
+  tray.setToolTip(`微信读书（透明版）· ${k.boss.key} 显示/隐藏 · ${k.transparent.key} 透明 · ${k.noImage.key} 无图 · ${k.bookmark.key} 书签`)
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: `显示 / 隐藏窗口（${k.boss.key}）`, click: toggleWindow },
     { label: `切换透明（${k.transparent.key}）`, click: toggleTransparent },
     { label: `切换无图（${k.noImage.key}）`, click: toggleMedia },
+    { label: `添加 / 移除书签（${k.bookmark.key}）`, click: toggleBookmark },
     { type: 'separator' },
     { label: '快捷键设置（面板里点「设置」）', click: () => win && win.webContents.send('wr-open-settings') },
     { type: 'separator' },

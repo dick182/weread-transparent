@@ -1,4 +1,4 @@
-# 微信读书（透明版）· WeRead Transparent 1.0.1
+# 微信读书（透明版）· WeRead Transparent 1.0.2
 
 作者：**MΛØ**
 
@@ -12,7 +12,7 @@
 | 项 | 说明 |
 |---|---|
 | 形态 | Electron 33 桌面客户端，加载 `https://weread.qq.com/`，登录态本地持久化 |
-| 版本 | 1.0.1 |
+| 版本 | 1.0.2 |
 | 作者 | MΛØ |
 | 免安装 | 便携版：单个 exe 双击即用，不写注册表、不建开始菜单 |
 | 数据 | 默认 `%APPDATA%\weread-transparent`；放了 `portable.txt` 则存到 exe 旁边 `data\` |
@@ -22,15 +22,16 @@
 - **透明（沉浸）模式**：抹掉页面所有背景，只留正文与插图；顶部栏、右侧工具栏、底部翻页条、
   目录浮层、页头章节名全部隐藏——这些元素用 `opacity:0` 隐藏而不是 `display:none`，
   正文排版一个字都不会挪。想翻页就点左右 13% 边缘、滚轮，或用 ←/→、PageUp/PageDown。
-  **唯一保留的站点功能是右上角「添加书签」角标**：平时完全隐形，鼠标移到右上角才淡入，
-  点一下加书签、再点一下移除。
+  **唯一保留的站点功能是右上角「添加书签」角标**：平时完全隐形，鼠标移到右上角才出现，
+  点一下加书签、再点一下移除；也可以直接用快捷键 `Alt+B` 加/移除，不必去找按钮。
 - **无图模式**：只隐藏书籍封面与正文插图，按钮图标、头像、想法里的红心/评论都不受影响。
 - **白字 / 黑字**：仅透明模式下可用（透明=桌面底色不可控，需要手动定字色）。透明模式默认黑字，
   暗色主题下自动白字。
 - **热门想法 / 划线笔记 / 设置界面**：透明模式下不做透明处理，始终保持自己的底色，保证可读；
   设置界面固定黑底白字。
-- **快捷键**：`F12` 透明、`Alt+X` 无图、`Alt+Z` 老板键（隐藏/唤回窗口），全部可在面板
-  「设置」里改键位与模式（全局 / 应用内 / 关闭），配置存 `hotkeys.json`。
+- **快捷键**：`F12` 透明、`Alt+X` 无图、`Alt+Z` 老板键（隐藏/唤回窗口）、`Alt+B` 添加/移除书签，
+  全部可在面板「设置」里改键位与模式（全局 / 应用内 / 关闭），带冲突与裸键校验，
+  配置存 `hotkeys.json`。
 - **托盘**：老板键失联时的兜底入口，菜单里也会显示当前键位。
 
 ## 三、目录结构
@@ -41,6 +42,7 @@ preload.js           悬浮控制面板 + 设置弹层（隔离世界，直连 i
 theme-sync.js        页面主世界：按主题维护 --wr-auto-fg / --wr-panel-fg
 black-text-patch.js  页面主世界：拦截 canvas 的 fillText/strokeText，改正文颜色
 page-turn.js         页面主世界：透明模式的左右点击区 / 滚轮翻页
+bookmark-hover.js    页面主世界：透明模式书签角标的右上角热区探测（切换 __wr_bm 属性）
 cdp.js               调试用 CDP 小工具（打包时不会进 exe）
 tray.png             托盘图标
 gen-icon.js          生成 tray.png
@@ -63,7 +65,7 @@ npm start
 
 ```bash
 npm run icon     # 需要改图标时，重新生成 build/icon.png
-npm run dist     # 产出 dist/WeRead-Transparent-1.0.1-Portable.exe
+npm run dist     # 产出 dist/WeRead-Transparent-1.0.2-Portable.exe
 ```
 
 国内网络建议加镜像：
@@ -93,6 +95,13 @@ npx electron-builder --win --x64
    页面上常驻着几个 `pointer-events:none` 的全屏 wrapper，会把正文滚轮误伤成永久失效）。
 8. **点击区的 z-index 有两条上限**：既要低于书籍浮层（99999，否则浮层两侧 13% 点不到），
    又要把右上角 84px 让给书签角标（`top:84px`），否则书签正好落在右侧 13% 里点不着。
+9. **书签角标不能用 CSS `:hover` + `transition` 控制**：站点在点击加/移除书签后会给 wrapper
+   加上 `_hasBookmark` 类并重建节点，新节点带着站点默认样式；隐藏规则只要带过渡，新节点就会
+   先以 `opacity:1` 露一下再淡出——看起来像「鼠标移走后凭空又闪出一个书签按钮」。
+   现在改由 `bookmark-hover.js` 按鼠标坐标切换 `<html>` 上的 `__wr_bm` 属性，CSS 依属性
+   瞬时显隐整个 wrapper 子树（`transition:none` / `animation:none`），与站点节点重建彻底解耦。
+   顺带一个坑：`_hasBookmark` 态下站点会把 actionArea 的 y 从 3 挪到 72，热区必须每 250ms
+   重算一次 rect，写死坐标会时灵时不灵。
 
 ## 七、便携版说明
 

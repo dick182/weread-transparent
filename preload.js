@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('reader', {
   setStyle: patch => ipcRenderer.invoke('wr-style', patch),
   getKeys: () => ipcRenderer.invoke('wr-get-keys'),
   setKey: p => ipcRenderer.invoke('wr-set-key', p),
+  resetKeys: () => ipcRenderer.invoke('wr-reset-keys'),
   zoom: f => ipcRenderer.send('wr-zoom', f),
   minimize: () => ipcRenderer.send('wr-minimize'),
   close: () => ipcRenderer.send('wr-close'),
@@ -49,13 +50,14 @@ const api = {
   }
 
   /* ---- 键位工具：Electron Accelerator 字符串 <-> KeyboardEvent ---- */
-  const KEY_LABELS = { transparent: '透明切换', noImage: '无图切换', boss: '老板键' }
+  const KEY_LABELS = { transparent: '透明切换', noImage: '无图切换', boss: '老板键', bookmark: '添加/移除书签' }
   const DEFAULTS = {
     transparent: { key: 'F12', mode: 'app' },
     noImage:     { key: 'Alt+X', mode: 'app' },
-    boss:        { key: 'Alt+Z', mode: 'global' }
+    boss:        { key: 'Alt+Z', mode: 'global' },
+    bookmark:    { key: 'Alt+B', mode: 'app' }
   }
-  const ACTIONS = ['transparent', 'noImage', 'boss']
+  const ACTIONS = ['transparent', 'noImage', 'boss', 'bookmark']
   function modeLabel(m) { return m === 'global' ? '全局' : m === 'app' ? '应用内' : '关闭' }
 
   function parseAcc(acc) {
@@ -122,7 +124,8 @@ const api = {
     let keys = {
       transparent: { key: 'F12', mode: 'app' },
       noImage:     { key: 'Alt+X', mode: 'app' },
-      boss:        { key: 'Alt+Z', mode: 'global' }
+      boss:        { key: 'Alt+Z', mode: 'global' },
+      bookmark:    { key: 'Alt+B', mode: 'app' }
     }
     let settingsOpen = false   // 设置弹层是否打开
     let captureAction = null   // 正在为哪个动作录制新键位
@@ -382,7 +385,7 @@ const api = {
       for (const action of ACTIONS) {
         const cfg = keys[action]
         const row = mk('div', { display: 'flex', 'align-items': 'center', gap: '8px' })
-        row.appendChild(mk('div', { width: '84px', color: '#cfd2d8' }, KEY_LABELS[action]))
+        row.appendChild(mk('div', { width: '104px', 'flex-shrink': '0', color: '#cfd2d8' }, KEY_LABELS[action]))
 
         const sel = document.createElement('select')
         for (const [v, t] of [['global', '全局'], ['app', '应用内'], ['off', '关闭']]) {
@@ -450,7 +453,7 @@ const api = {
       const res = await api.resetKeys()
       if (res && res.ok) {
         keys = res.config
-        showToast('三个快捷键均已恢复默认')
+        showToast('四个快捷键均已恢复默认')
         syncPanelTitles()
         renderSettings()
       }
@@ -585,6 +588,8 @@ const api = {
       if (data.message) showToast(data.message)
     })
     ipcRenderer.on('wr-open-settings', () => openSettings())
+    // 主进程主动提示（例如书签快捷键在书架页找不到按钮时）
+    ipcRenderer.on('wr-notice', (_e, text) => { if (text) showToast(text) })
 
     /* ---- 初始化键位提示 ---- */
     api.getKeys().then(k => {
