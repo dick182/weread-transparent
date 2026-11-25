@@ -1,15 +1,15 @@
 # 依赖
 node_modules/
 
-# 打包中间产物
-dist/
+# 打包中间产物（含 electron-builder 失败时临时挪出的 dist_old_* / dist_prev 等）
+dist*/
 out/
 release/_stage/
 
 # release 里只收便携版 exe 与说明；
-# Win-x64.zip 有 107MB，超过 GitHub 单文件 100MB 硬限制，故排除（可用源码重打包或走 Releases）
+# Win-x64.zip 有 100MB+，超过 GitHub 单文件 100MB 硬限制，故排除（可用源码重打包或走 Releases）
 release/*
-!release/WeRead-Transparent-1.0.0-Portable.exe
+!release/WeRead-Transparent-1.0.1-Portable.exe
 !release/使用说明.txt
 
 # 运行时日志

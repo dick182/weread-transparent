@@ -144,13 +144,33 @@ html[__wr_t] .renderTarget_pager,
 html[__wr_t] .readerFooter,
 html[__wr_t] .renderTargetPageInfo_header,
 html[__wr_t] [class*="renderTargetPageInfo_header"],
-html[__wr_t] .wr_reader_float_corner_bookmark_wrapper,
 html[__wr_t] .readerCatalog,
 html[__wr_t] [class*="readerProgress"],
-html[__wr_t] [class*="float_corner"] {
+html[__wr_t] [class*="float_corner"]:not([class*="bookmark"]) {
   opacity: 0 !important;
   pointer-events: none !important;
   transition: opacity .18s !important;
+}
+/* 透明模式唯一保留的站点功能：右上角「添加书签」角标。
+   wrapper 是一条横跨正文的透明层，站点原生就是 pointer-events:auto（书签按钮靠它接收
+   悬停/点击），这里只强制它可见，不动指针行为，避免把点击事件链打断。
+   按钮本体默认隐藏，鼠标移到右上角热区（150×70）时才淡入——opacity:0 不影响命中测试，
+   所以 :hover 依然能触发；站点自己的「点击添加书签」文字也会在悬停时一并出现。
+   注意排除 actionArea_* 子元素（_lang / _icon）：否则图标会跟着自己被设成 opacity:0，
+   结果是 hover 出文字但书签图形仍然不见。 */
+html[__wr_t] .wr_reader_float_corner_bookmark_wrapper,
+html[__wr_t] [class*="float_corner_bookmark_wrapper"] {
+  opacity: 1 !important;
+}
+html[__wr_t] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]) {
+  opacity: 0 !important;
+  transition: opacity .18s !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+html[__wr_t] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]):hover,
+html[__wr_t] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]):focus-within {
+  opacity: 1 !important;
 }
 /* 无图模式（__wr_m）：只隐藏「书籍封面」和「书籍正文插图」，不动任何功能按钮/图标/头像。
    ① 站点按钮图标大多是 svg，功能按钮（AI问书、上下滚动阅读、加入书架、想法里的

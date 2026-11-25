@@ -1,6 +1,6 @@
 {
   "name": "weread-transparent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "微信读书桌面客户端（便携版）：透明背景、无边框、沉浸纯文字阅读",
   "main": "main.js",
   "author": "MΛØ",
@@ -46,7 +46,7 @@
       ]
     },
     "portable": {
-      "artifactName": "WeRead-Transparent-1.0.0-Portable.${ext}",
+      "artifactName": "WeRead-Transparent-1.0.1-Portable.${ext}",
       "requestExecutionLevel": "user",
       "unpackDirName": "WeReadTransparent"
     }

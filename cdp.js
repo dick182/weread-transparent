@@ -115,6 +115,21 @@ async function main() {
       await new Promise(r => setTimeout(r, 400))
     }
     console.log('sent', key, 'x' + times)
+  } else if (cmd === 'wheel') {
+    // node cdp.js wheel <x> <y> <deltaY> [times]
+    const x = parseFloat(args[0]), y = parseFloat(args[1]), dy = parseFloat(args[2] || '300')
+    const times = parseInt(args[3] || '1', 10)
+    await send(ws, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
+    for (let i = 0; i < times; i++) {
+      await send(ws, 'Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY: dy, pointerType: 'mouse' })
+      await new Promise(r => setTimeout(r, 120))
+    }
+    console.log('wheel', dy, 'x' + times, 'at', x, y)
+  } else if (cmd === 'hover') {
+    // node cdp.js hover <x> <y>
+    const x = parseFloat(args[0]), y = parseFloat(args[1])
+    await send(ws, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
+    console.log('hover', x, y)
   } else if (cmd === 'front') {
     await send(ws, 'Page.bringToFront')
     console.log('brought to front')
