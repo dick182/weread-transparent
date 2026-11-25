@@ -536,7 +536,8 @@ const api = {
 
     /* ---- 开启沉浸模式时给一句提示（3 秒后自动消失） ---- */
     let toast = null
-    function showToast(text) {
+    // kind === 'success' 用于书签快捷键的成功提示：绿色对勾 + 绿色描边
+    function showToast(text, kind) {
       if (!toast) {
         toast = document.createElement('div')
         toast.className = 'wr-ui-solid'
@@ -547,15 +548,29 @@ const api = {
           background: 'rgba(18,20,26,.88)', color: '#e6e8ec',
           'font-size': '12px', 'font-family': '"Microsoft YaHei",sans-serif',
           'box-shadow': '0 4px 16px rgba(0,0,0,.35)', opacity: '0',
-          transition: 'opacity .2s'
+          visibility: 'hidden', transition: 'opacity .2s'
         })
         document.body.appendChild(toast)
       }
       if (!document.body.contains(toast)) document.body.appendChild(toast)
-      toast.textContent = text
+      const success = kind === 'success'
+      toast.textContent = success ? '✓  ' + text : text
+      toast.style.setProperty('color', success ? '#eafbf3' : '#e6e8ec', 'important')
+      toast.style.setProperty('border-left', success ? '3px solid #3ecf8e' : 'none', 'important')
+      toast.style.setProperty('visibility', 'visible', 'important')
       toast.style.setProperty('opacity', '1', 'important')
       clearTimeout(toast.__t)
-      toast.__t = setTimeout(() => toast.style.setProperty('opacity', '0', 'important'), 3000)
+      clearTimeout(toast.__hideT)
+      toast.__t = setTimeout(() => {
+        toast.style.setProperty('opacity', '0', 'important')
+        // 透明窗口里只压 opacity 会残留一帧旧合成画面：淡出结束再彻底隐藏。
+        // 若这期间又弹了新提示（opacity 被设回 1），则不隐藏。
+        toast.__hideT = setTimeout(() => {
+          if (toast.style.getPropertyValue('opacity') === '0') {
+            toast.style.setProperty('visibility', 'hidden', 'important')
+          }
+        }, 220)
+      }, 3000)
     }
     window.__wrToast = showToast
 
@@ -590,6 +605,9 @@ const api = {
     ipcRenderer.on('wr-open-settings', () => openSettings())
     // 主进程主动提示（例如书签快捷键在书架页找不到按钮时）
     ipcRenderer.on('wr-notice', (_e, text) => { if (text) showToast(text) })
+    // 书签快捷键专用成功提示：只有快捷键触发才会走这条通道，
+    // 手动点右上角书签按钮不经过主进程，因此不会出现提示
+    ipcRenderer.on('wr-bookmark-toast', (_e, text) => { if (text) showToast(text, 'success') })
 
     /* ---- 初始化键位提示 ---- */
     api.getKeys().then(k => {

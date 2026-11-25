@@ -414,18 +414,40 @@ function toggleMedia() {
 // 添加 / 移除书签：直接触发站点右上角的书签按钮。
 // DOM 的 .click() 会冒泡到 React 的事件委托，实测可切换 _hasBookmark 状态；
 // 用 CDP 合成指针序列反而常丢失 mouseup。找不到按钮时给一句提示。
-async function toggleBookmark() {
+// source === 'hotkey' 才发「书签添加成功 / 书签移除成功」：
+// 手动点站点自己的按钮完全不经过这个函数，所以天然不会弹提示。
+async function toggleBookmark(source) {
   if (!win || win.isDestroyed()) return
-  const js = `(() => {
-    const a = document.querySelector('[class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"])');
-    if (!a) return 'none';
-    a.click();
-    return 'ok';
+  const js = `(async () => {
+    const SEL = '[class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"])';
+    const btn = document.querySelector(SEL);
+    if (!btn) return { status: 'none' };
+    const isAdded = function (node) {
+      if (!node) return false;
+      const w = node.closest('[class*="bookmark_wrapper"]');
+      const cls = (w && typeof w.className === 'string' ? w.className : '') + ' ' +
+                  (typeof node.className === 'string' ? node.className : '');
+      const txt = node.innerText || node.textContent || '';
+      if (/移除/.test(txt)) return true;
+      if (/添加/.test(txt)) return false;
+      return /hasBookmark/i.test(cls);
+    };
+    const before = isAdded(btn);
+    btn.click();
+    // 站点在 React 里改文案并可能重建节点，等一帧再读
+    await new Promise(r => setTimeout(r, 220));
+    const after = isAdded(document.querySelector(SEL));
+    // 只有 DOM 确实翻转了才采信 after；否则按 toggle 语义由 before 反推
+    const added = (after !== before) ? after : !before;
+    return { status: 'ok', added: added };
   })()`
   try {
     const r = await win.webContents.executeJavaScript(js, true)
-    if (r === 'none' && !win.isDestroyed()) {
+    if (win.isDestroyed()) return
+    if (!r || r.status === 'none') {
       win.webContents.send('wr-notice', '当前页面没有书签按钮，请先打开书籍正文')
+    } else if (r.status === 'ok' && source === 'hotkey') {
+      win.webContents.send('wr-bookmark-toast', r.added ? '书签添加成功' : '书签移除成功')
     }
   } catch (_) {}
 }
@@ -434,7 +456,7 @@ const ACTIONS = {
   transparent: toggleTransparent,
   noImage: toggleMedia,
   boss: toggleWindow,
-  bookmark: toggleBookmark
+  bookmark: () => toggleBookmark('hotkey')
 }
 function fireAction(action) {
   if (capturing || !ACTIONS[action]) return
@@ -476,7 +498,8 @@ function updateTrayLabels() {
     { label: `显示 / 隐藏窗口（${k.boss.key}）`, click: toggleWindow },
     { label: `切换透明（${k.transparent.key}）`, click: toggleTransparent },
     { label: `切换无图（${k.noImage.key}）`, click: toggleMedia },
-    { label: `添加 / 移除书签（${k.bookmark.key}）`, click: toggleBookmark },
+    // 托盘菜单属于手动操作，按需求不弹「添加/移除成功」提示
+    { label: `添加 / 移除书签（${k.bookmark.key}）`, click: () => toggleBookmark() },
     { type: 'separator' },
     { label: '快捷键设置（面板里点「设置」）', click: () => win && win.webContents.send('wr-open-settings') },
     { type: 'separator' },

@@ -1,4 +1,4 @@
-# 微信读书（透明版）· WeRead Transparent 1.0.5
+# 微信读书（透明版）· WeRead Transparent 1.0.6
 
 作者：**MΛØ**
 
@@ -12,7 +12,7 @@
 | 项 | 说明 |
 |---|---|
 | 形态 | Electron 33 桌面客户端，加载 `https://weread.qq.com/`，登录态本地持久化 |
-| 版本 | 1.0.5 |
+| 版本 | 1.0.6 |
 | 作者 | MΛØ |
 | 免安装 | 便携版：单个 exe 双击即用，不写注册表、不建开始菜单 |
 | 数据 | 默认 `%APPDATA%\weread-transparent`；放了 `portable.txt` 则存到 exe 旁边 `data\` |
@@ -30,6 +30,8 @@
   自身一起 `opacity:0 + visibility:hidden`。1.0.5 又把 `actionArea` 的默认位移
   `translateY(-100%)` 钉成 0——站点平时只让一小截书签「舌头」探在页面顶边外面、悬停才落回页内，
   钉死后按钮恒定停在页内的正确位置，不会出现「页内一枚 + 顶边一枚」两个书签。
+  1.0.6 起用快捷键加/移除书签，会在窗口底部弹一句带绿色对勾的「书签添加成功 / 书签移除成功」
+  （3 秒淡出）；这条提示只走快捷键路径，手动点右上角角标不会弹。
 - **无图模式**：只隐藏书籍封面与正文插图，按钮图标、头像、想法里的红心/评论都不受影响。
 - **白字 / 黑字**：仅透明模式下可用（透明=桌面底色不可控，需要手动定字色）。透明模式默认黑字，
   暗色主题下自动白字。
@@ -38,6 +40,8 @@
 - **快捷键**：`F12` 透明、`Alt+X` 无图、`Alt+Z` 老板键（隐藏/唤回窗口）、`Alt+B` 添加/移除书签，
   全部可在面板「设置」里改键位与模式（全局 / 应用内 / 关闭），带冲突与裸键校验，
   配置存 `hotkeys.json`。
+- **书签快捷键反馈**：按 `Alt+B` 加/移除书签后，窗口底部弹出「✓ 书签添加成功 / 书签移除成功」，
+  3 秒后自动淡出。手动点右上角书签角标不会弹这条提示。
 - **托盘**：老板键失联时的兜底入口，菜单里也会显示当前键位。
 
 ## 三、目录结构
@@ -71,7 +75,7 @@ npm start
 
 ```bash
 npm run icon     # 需要改图标时，重新生成 build/icon.png
-npm run dist     # 产出 dist/WeRead-Transparent-1.0.5-Portable.exe
+npm run dist     # 产出 dist/WeRead-Transparent-1.0.6-Portable.exe
 ```
 
 国内网络建议加镜像：
@@ -128,6 +132,11 @@ npx electron-builder --win --x64
     表现是 `insertCSS` 报 `Error processing argument at index 0, conversion failure`，
     而且连累 `wr-style` IPC 一起失败（面板按钮全部失灵）。改注释时别在模板字符串里用反引号。
     `applyStyle` 现在对 `insertCSS` 失败做了降级：改用 `<style id="wr-style">` 注入。
+14. **「书签成功」提示只在快捷键路径发**：`toggleBookmark(source)` 只有 `source === 'hotkey'`
+    时才发 `wr-bookmark-toast`；`ACTIONS.bookmark` 包成 `() => toggleBookmark('hotkey')`，
+    手动点站点角标根本不经过主进程，托盘菜单也显式传空 —— 三条路径天然分开，不必监听页面点击
+    就能做到「只在快捷键时提示」。到底是添加还是移除，由点击前后的按钮文案（含「添加」/「移除」）
+    判定；站点 DOM 没及时翻转时，按 toggle 语义用点击前状态反推。
 
 ## 七、便携版说明
 
