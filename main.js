@@ -47,6 +47,12 @@ let styleOpts = {
   fg: null              // 文字颜色覆盖（null=使用网站原色）
 }
 
+/* 开发调试用：启动时强制某个模式，不必依赖 UI 点击。
+   WR_FORCE_TRANSPARENT=1 / WR_FORCE_NOIMAGE=1 只在设置了环境变量时生效，
+   正常双击启动完全无影响。 */
+if (process.env.WR_FORCE_TRANSPARENT === '1') styleOpts.transparent = true
+if (process.env.WR_FORCE_NOIMAGE === '1') styleOpts.hideMedia = true
+
 /* ---------- 快捷键设置：键位 + 模式（可自定义、持久化） ---------- */
 const KEY_LABELS = { transparent: '透明切换', noImage: '无图切换', boss: '老板键', bookmark: '添加/移除书签' }
 const DEFAULT_KEYS = {
@@ -157,20 +163,26 @@ html[__wr_t] [class*="float_corner"]:not([class*="bookmark"]) {
   transition: opacity .18s !important;
 }
 /* 透明模式唯一保留的站点功能：右上角「添加书签」角标。
-   ★ 显隐改由 __wr_bm 属性门控（bookmark-hover.js 按鼠标坐标设置），不用 CSS :hover，
+   ★ 显隐由 __wr_bm 属性门控（bookmark-hover.js 按鼠标命中的元素设置），不用 CSS :hover，
      也绝不带 transition：站点点击加/移除书签后会给 wrapper 加 _hasBookmark 类并重建
-     节点，新节点带着站点默认样式，只要有淡出过渡就会「先闪一下再消失」。
-   ★ 规则直接覆盖 wrapper 子树的所有后代，站点切到 _hasBookmark 态或新建节点都盖得住；
-     wrapper 自身保持可见、pointer-events 维持站点原样，hover / click 事件链不受影响。 */
-html[__wr_t] [class*="float_corner_bookmark_wrapper"] {
-  opacity: 1 !important;
-}
-html[__wr_t] [class*="float_corner_bookmark_wrapper"] * {
+     节点、并把 actionArea 在 y3~73 与 y72~142 之间挪位，只要有淡出过渡就会「先闪一下」。
+   ★ 隐藏必须连 wrapper 自身一起设为 opacity:0。
+     上一版只压后代、把 wrapper 留在 opacity:1，结果 wrapper 自己的 ::before/::after
+     以及站点给 wrapper 设的背景仍然可见，鼠标移开后还会残留一小块 →「闪现」。
+     opacity 不影响 hit-test，所以 wrapper 保持 opacity:0 也不耽误站点接收 hover/click。
+   ★ 伪元素要单独点名：通配选择器（星号）匹配不到 ::before / ::after。 */
+html[__wr_t] [class*="float_corner_bookmark_wrapper"],
+html[__wr_t] [class*="float_corner_bookmark_wrapper"] *,
+html[__wr_t] [class*="float_corner_bookmark_wrapper"] *::before,
+html[__wr_t] [class*="float_corner_bookmark_wrapper"] *::after {
   opacity: 0 !important;
   transition: none !important;
   animation: none !important;
 }
-html[__wr_t][__wr_bm] [class*="float_corner_bookmark_wrapper"] * {
+html[__wr_t][__wr_bm] [class*="float_corner_bookmark_wrapper"],
+html[__wr_t][__wr_bm] [class*="float_corner_bookmark_wrapper"] *,
+html[__wr_t][__wr_bm] [class*="float_corner_bookmark_wrapper"] *::before,
+html[__wr_t][__wr_bm] [class*="float_corner_bookmark_wrapper"] *::after {
   opacity: 1 !important;
 }
 html[__wr_t] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]) {
@@ -233,7 +245,20 @@ function applyStyle() {
   const p = styleChain.then(async () => {
     if (!win || win.isDestroyed()) return styleOpts
     if (cssKey === null) {
-      cssKey = await win.webContents.insertCSS(CSS_RULES, { cssOrigin: 'user' })
+      try {
+        cssKey = await win.webContents.insertCSS(CSS_RULES, { cssOrigin: 'user' })
+      } catch (e) {
+        // 某些环境下 insertCSS 会因参数转换失败（Electron 内部 gin 层报 conversion failure），
+        // 退化成往页面里插一个 <style>：效果等价，页面导航后随文档一起销毁、下次重建
+        console.error('[wr] insertCSS failed:', e && e.message, '| css:', typeof CSS_RULES, CSS_RULES && CSS_RULES.length)
+        cssKey = await win.webContents.executeJavaScript(
+          `(() => {
+            let s = document.getElementById('wr-style');
+            if (!s) { s = document.createElement('style'); s.id = 'wr-style'; (document.head || document.documentElement).appendChild(s) }
+            s.textContent = ${JSON.stringify(CSS_RULES)};
+            return 'inline-style'
+          })()`, true)
+      }
     }
     await win.webContents.executeJavaScript(syncAttrsJS(styleOpts), true)
     // 广播状态：preload 用它同步面板按钮高亮与提示
@@ -256,7 +281,7 @@ function applyStyle() {
     }
     return styleOpts
   })
-  styleChain = p.catch(() => {})
+  styleChain = p.catch(e => { console.error('[wr] applyStyle failed:', e && e.message) })
   return p
 }
 
@@ -329,6 +354,9 @@ function createWindow() {
   }
   win.webContents.on('did-navigate', reloadStyle)
   win.webContents.on('dom-ready', reloadStyle)
+  // dom-ready 阶段页面还在 loading，insertCSS 有时会失败（样式表随页面销毁后重注失败），
+  // 这里在 did-finish-load 再补一次，确保样式表一定就位
+  win.webContents.on('did-finish-load', reloadStyle)
   win.webContents.on('did-navigate-in-page', resyncAttrs)
 }
 

@@ -1,4 +1,4 @@
-# 微信读书（透明版）· WeRead Transparent 1.0.2
+# 微信读书（透明版）· WeRead Transparent 1.0.3
 
 作者：**MΛØ**
 
@@ -12,7 +12,7 @@
 | 项 | 说明 |
 |---|---|
 | 形态 | Electron 33 桌面客户端，加载 `https://weread.qq.com/`，登录态本地持久化 |
-| 版本 | 1.0.2 |
+| 版本 | 1.0.3 |
 | 作者 | MΛØ |
 | 免安装 | 便携版：单个 exe 双击即用，不写注册表、不建开始菜单 |
 | 数据 | 默认 `%APPDATA%\weread-transparent`；放了 `portable.txt` 则存到 exe 旁边 `data\` |
@@ -65,7 +65,7 @@ npm start
 
 ```bash
 npm run icon     # 需要改图标时，重新生成 build/icon.png
-npm run dist     # 产出 dist/WeRead-Transparent-1.0.2-Portable.exe
+npm run dist     # 产出 dist/WeRead-Transparent-1.0.3-Portable.exe
 ```
 
 国内网络建议加镜像：
@@ -94,14 +94,22 @@ npx electron-builder --win --x64
    `.reader_float_panel_container` 的可见尺寸，不能用 `[class*=float_panel]` 通配，
    页面上常驻着几个 `pointer-events:none` 的全屏 wrapper，会把正文滚轮误伤成永久失效）。
 8. **点击区的 z-index 有两条上限**：既要低于书籍浮层（99999，否则浮层两侧 13% 点不到），
-   又要把右上角 84px 让给书签角标（`top:84px`），否则书签正好落在右侧 13% 里点不着。
-9. **书签角标不能用 CSS `:hover` + `transition` 控制**：站点在点击加/移除书签后会给 wrapper
-   加上 `_hasBookmark` 类并重建节点，新节点带着站点默认样式；隐藏规则只要带过渡，新节点就会
-   先以 `opacity:1` 露一下再淡出——看起来像「鼠标移走后凭空又闪出一个书签按钮」。
-   现在改由 `bookmark-hover.js` 按鼠标坐标切换 `<html>` 上的 `__wr_bm` 属性，CSS 依属性
-   瞬时显隐整个 wrapper 子树（`transition:none` / `animation:none`），与站点节点重建彻底解耦。
-   顺带一个坑：`_hasBookmark` 态下站点会把 actionArea 的 y 从 3 挪到 72，热区必须每 250ms
-   重算一次 rect，写死坐标会时灵时不灵。
+   又要让开整个书签角标区（`top:152px`，不是 84px —— 站点 hover 时按钮会从 y3 滑到 y72，
+   下沿到 142，只让 84px 会把下移后的按钮盖住，既点不到、也让 hover 探测拿不到真实命中）。
+9. **书签角标的隐藏必须连 wrapper 自身一起设为 `opacity:0`**：早期版本只压后代、把 wrapper
+   留在 `opacity:1`，结果 wrapper 自己的 `::before/::after` 和站点给 wrapper 设的背景仍会
+   渲染出来，鼠标移开后残留一小块 → 用户看到「上方又闪一下书签」。
+   另外「通配选择器」匹配不到伪元素，`::before`/`::after` 要单独点名。
+   显隐由 `bookmark-hover.js` 切 `<html>` 上的 `__wr_bm` 属性控制，CSS 依属性瞬时显隐
+   （`transition:none` / `animation:none`），与站点点击后重建节点彻底解耦。
+10. **热区必须取按钮两态的并集**：站点 hover 时把 actionArea 从 y3~73 滑到 y72~142，
+    鼠标停在原处就会一会儿在按钮上、一会儿不在，判定跟着反复翻转 → 闪烁。
+    现在纵向固定 0~150、横向跟按钮左右，并用 `elementFromPoint` 做真实命中优先判断。
+11. **模板字符串里的反引号是个隐雷**：CSS 规则写在 JS 模板字符串里，注释里随手写一个
+    `` `*` `` 就会提前闭合模板，`CSS_RULES` 变成 `字符串 * 字符串` = `NaN`，
+    表现是 `insertCSS` 报 `Error processing argument at index 0, conversion failure`，
+    而且连累 `wr-style` IPC 一起失败（面板按钮全部失灵）。改注释时别在模板字符串里用反引号。
+    `applyStyle` 现在对 `insertCSS` 失败做了降级：改用 `<style id="wr-style">` 注入。
 
 ## 七、便携版说明
 

@@ -86,6 +86,9 @@
     setStyle(z, {
       // 右侧点击区从书签角标下方开始：透明模式保留了右上角「添加书签」，
       // 它正好落在右侧 13% 的顶部，不能让翻页区把它盖住。
+      // 注意书签按钮会在 y3~73 与 y72~142 之间跳动（站点 hover 时下移 70px），
+      // 所以让出的是整个 3~142 区间，而不是只让 84px —— 否则按钮下移后被盖住，
+      // 既点不到、也会让 hover 探测拿不到真实命中元素。
       position: 'fixed', top: top || '0', bottom: '0', width: '13%',
       // z-index 必须低于书籍浮层（.reader_float_top_reviews_panel_wrapper 是 99999），
       // 否则浮层两侧 13% 的点击会被点击区吞掉
@@ -109,7 +112,7 @@
   }
 
   const zonePrev = makeZone('left', '‹', -1, '0')
-  const zoneNext = makeZone('right', '›', 1, '84px')
+  const zoneNext = makeZone('right', '›', 1, '152px')
 
   // 沉浸模式（<html __wr_t>）开启时显示左右点击区
   function sync() {
