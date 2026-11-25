@@ -1,7 +1,7 @@
 // 轻量 CDP 客户端：node cdp.js list|eval "<js>"|shot <file>|nav <url>
 const http = require('http')
 const fs = require('fs')
-const PORT = 9222
+const PORT = Number(process.env.CDP_PORT || 9222)
 
 function httpGet(path) {
   return new Promise((resolve, reject) => {

@@ -163,19 +163,18 @@ html[__wr_t] [class*="float_corner"]:not([class*="bookmark"]) {
   transition: opacity .18s !important;
 }
 /* 透明模式唯一保留的站点功能：右上角「添加书签」角标。
-   ★ 显隐由 __wr_bm 属性门控（bookmark-hover.js 按鼠标命中的元素设置），不用 CSS :hover，
-     也绝不带 transition：站点点击加/移除书签后会给 wrapper 加 _hasBookmark 类并重建
-     节点、并把 actionArea 在 y3~73 与 y72~142 之间挪位，只要有淡出过渡就会「先闪一下」。
-   ★ 隐藏必须连 wrapper 自身一起设为 opacity:0。
-     上一版只压后代、把 wrapper 留在 opacity:1，结果 wrapper 自己的 ::before/::after
-     以及站点给 wrapper 设的背景仍然可见，鼠标移开后还会残留一小块 →「闪现」。
-     opacity 不影响 hit-test，所以 wrapper 保持 opacity:0 也不耽误站点接收 hover/click。
+   ★ 显隐由 __wr_bm 属性门控（bookmark-hover.js 按鼠标位置设置），不用 CSS :hover，
+     也绝不带 transition：站点点击加/移除书签后会重建节点，只要有淡出过渡就会「先闪一下」。
+   ★ 隐藏必须连 wrapper 自身一起藏，而且要 opacity + visibility 双保险：
+     只压后代时 wrapper 自己的 ::before/::after 与站点给的背景仍会绘制；
+     只压 opacity 时透明窗口的合成层还可能残留一帧旧画面 →「鼠标移开后上方再闪一下」。
    ★ 伪元素要单独点名：通配选择器（星号）匹配不到 ::before / ::after。 */
 html[__wr_t] [class*="float_corner_bookmark_wrapper"],
 html[__wr_t] [class*="float_corner_bookmark_wrapper"] *,
 html[__wr_t] [class*="float_corner_bookmark_wrapper"] *::before,
 html[__wr_t] [class*="float_corner_bookmark_wrapper"] *::after {
   opacity: 0 !important;
+  visibility: hidden !important;
   transition: none !important;
   animation: none !important;
 }
@@ -184,6 +183,24 @@ html[__wr_t][__wr_bm] [class*="float_corner_bookmark_wrapper"] *,
 html[__wr_t][__wr_bm] [class*="float_corner_bookmark_wrapper"] *::before,
 html[__wr_t][__wr_bm] [class*="float_corner_bookmark_wrapper"] *::after {
   opacity: 1 !important;
+  visibility: visible !important;
+  transition: none !important;
+  animation: none !important;
+}
+/* ★ 书签图标固定站点品牌蓝（#1b88ee）。
+   站点的蓝色只挂在「指针精确落在 15px 宽的 svg 上」这一条规则（svg:hover #iconFill），
+   鼠标停在旁边的「点击添加书签」文字上时图标仍是灰色 #d4d6d8，看着像一枚半透明残影
+   ——就是用户标为「错误图标」的那一态。这里把填充色锁死，两种落点看到的都是「正确图标」。 */
+html[__wr_t][__wr_bm] [class*="bookmark_actionArea_lang"] {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+html[__wr_t][__wr_bm] [class*="bookmark_actionArea_icon"] #iconFill,
+html[__wr_t][__wr_bm] [class*="bookmark_actionArea_icon"] #iconStroke,
+html[__wr_t][__wr_bm] [class*="bookmark_actionArea_icon"] path {
+  opacity: 1 !important;
+  fill: #1b88ee !important;
+  transition: none !important;
 }
 html[__wr_t] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]) {
   pointer-events: auto !important;

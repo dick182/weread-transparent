@@ -6,11 +6,20 @@ dist*/
 out/
 release/_stage/
 
-# release 里只收便携版 exe 与说明；
-# Win-x64.zip 有 100MB+，超过 GitHub 单文件 100MB 硬限制，故排除（可用源码重打包或走 Releases）
+# release 里只收说明文件；exe / zip 体积大，走本地分发或 GitHub Releases
 release/*
-!release/WeRead-Transparent-1.0.3-Portable.exe
 !release/使用说明.txt
+
+# 调试产物（CDP 截图、抽帧、临时脚本）
+frames/
+cycles/
+*.shot.png
+v2_*.png
+live*.png
+s_hover.png
+crop_ok.png
+crop_bad.png
+frame.js
 
 # 运行时日志
 *.log
