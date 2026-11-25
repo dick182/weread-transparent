@@ -202,6 +202,17 @@ html[__wr_t][__wr_bm] [class*="bookmark_actionArea_icon"] path {
   fill: #1b88ee !important;
   transition: none !important;
 }
+/* ★ 位移钉死。
+   站点给 actionArea 写了 transform: translateY(-100%)（70px），也就是默认只有一小截
+   书签「舌头」探在页面顶边外面，靠 hover 才落回页内和「点击添加书签」文字对齐。
+   只要我们让它可见、而指针正好落在热区里却压不到 wrapper/actionArea（热区比按钮大一圈，
+   上下各留了余量），站点就收不到 hover，于是文字在页内、图标却还挂在顶边——
+   用户看到的就是「两个书签按钮」：一枚探出页面顶边，一枚在文字旁。
+   透明模式下直接把位移钉成 0，永远停在页内的正确位置，显隐只由 __wr_bm 决定。 */
+html[__wr_t] [class*="float_corner_bookmark_wrapper"] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]) {
+  transform: translateY(0) !important;
+  transition: none !important;
+}
 html[__wr_t] [class*="float_corner_bookmark_actionArea"]:not([class*="actionArea_"]) {
   pointer-events: auto !important;
   cursor: pointer !important;
